@@ -63,7 +63,6 @@ class ParameterItem(QtGui.QTreeWidgetItem):
             for i in menuitems:
                 try:
                     self.contextMenu.addMenu(i)
-                    print (i.title())
                 except TypeError:
                     self.contextMenu.addAction(i)
             opts.pop('addToContextMenu')
@@ -97,8 +96,7 @@ class ParameterItem(QtGui.QTreeWidgetItem):
         if opts.get('duplicatable', False):
             self.contextMenu.addAction(
                 "Duplicate").triggered.connect(param.duplicate)
-        if opts.get('type') == 'group' or param.opts.get(
-                'highlight', False):
+        if opts.get('type') == 'group':
             self.updateDepth(depth)
         # ICON
         iconpath = opts.get('icon', False)

@@ -73,7 +73,6 @@ class Parameter(QtCore.QObject):
     sigOptionsChanged = QtCore.Signal(object, object)  ## self, {opt:val, ...}
     sigChildRemoved = QtCore.Signal(object, object, object)  ## self, child, index
     sigDuplicated = QtCore.Signal()
-    sigRemoved = QtCore.Signal()
     ## Emitted when anything changes about this parameter at all.
     ## The second argument is a string indicating what changed ('value', 'childAdded', etc..)
     ## The third argument can be any extra information about the change
