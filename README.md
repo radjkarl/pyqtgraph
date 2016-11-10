@@ -11,6 +11,7 @@ other packages (dataArtist) use this fork as 'pyqtgraph_karl'
 Since git cannot handle symbolic links, please create one after downloading the code
 
 >>> cd PATH\TO\FOLDER
+
 >>> mklink /J pyqtgraph_karl pyqtgraph
 
 
