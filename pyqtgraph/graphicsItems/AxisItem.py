@@ -16,6 +16,9 @@ class AxisItem(GraphicsWidget):
     Ticks can be extended to draw a grid.
     If maxTickLength is negative, ticks point into the plot. 
     """
+    sigLabelChanged = QtCore.Signal(object, object, object, object) # text, unit, prefix, args
+    sigRangeChanged = QtCore.Signal(object, object) # mn, mx
+    sigFontSizeChanged = QtCore.Signal(object) # fontSize
     
     def __init__(self, orientation, pen=None, linkView=None, parent=None, maxTickLength=-5, showValues=True):
         """
@@ -34,12 +37,8 @@ class AxisItem(GraphicsWidget):
         GraphicsWidget.__init__(self, parent)
         self.label = QtGui.QGraphicsTextItem(self)
         self.picture = None
-        self.orientation = orientation
-        if orientation not in ['left', 'right', 'top', 'bottom']:
-            raise Exception("Orientation argument must be one of 'left', 'right', 'top', or 'bottom'.")
-        if orientation in ['left', 'right']:
-            self.label.rotate(-90)
-            
+        self.orientation = None
+        self.setOrientation(orientation)
         self.style = {
             'tickTextOffset': [5, 2],  ## (horizontal, vertical) spacing between text and axis 
             'tickTextWidth': 30,  ## space reserved for tick text
@@ -95,6 +94,73 @@ class AxisItem(GraphicsWidget):
         
         self.grid = False
         #self.setCacheMode(self.DeviceCoordinateCache)
+
+    #ADDED
+    def setOrientation(self, orientation):
+        """
+        orientation = 'left', 'right', 'top', 'bottom'
+        """
+        if orientation != self.orientation:
+            if orientation not in ['left', 'right', 'top', 'bottom']:
+                raise Exception("Orientation argument must be one of 'left', 'right', 'top', or 'bottom'.")
+            #rotate absolute allows to change orientation multiple times:
+            if orientation in ['left', 'right']:
+                self.label.setRotation(-90)
+            else:
+                self.label.setRotation(0) 
+            self.orientation = orientation
+            self.update()
+
+    #ADDED
+    def clone(self, orientation=None, **kwargs):
+        """
+        clone this axis. the new axis will behave like the origin. 
+        """
+        axis = self.copy(orientation, kwargs)
+        self.sigLabelChanged.connect(axis.setLabel)
+        self.sigRangeChanged.connect(axis.setRange)
+        return axis
+    
+    #ADDED
+    def copy(self, orientation=None, **kwargs):
+        """
+        Return a new axis sharing the same name and range (more attributes following...)
+        """
+        if orientation == None:
+            orientation = self.orientation
+        axis = AxisItem(orientation, **kwargs)
+        if self.label.isVisible():
+            axis.setLabel(self.labelText, self.labelUnits, self.labelUnitPrefix, **self.labelStyle)
+        axis.setRange(*self.range)
+        return axis
+    
+    #ADDED
+    def setFontSize(self, ptSize):
+        '''
+        change the size of the label, ticks and tickValues proportional
+        '''
+        #change label size
+        self.labelStyle['font-size'] = '%spt' %ptSize
+        if self.isVisible():
+            #only exec if visible, otherwise it would create empty space 
+            #TODO: if exec when axis is not visible creates warning: 'QPainter::font: Painter not active'
+            self.setLabel(self.labelText, self.labelUnits,**self.labelStyle)
+            if not self.orientation in ['left', 'right']:
+                txtoffs =  int(5.0/9*ptSize)
+            else:
+                txtoffs = int(2.0/9*ptSize)
+            #change ticks sizes and tickValue distances
+            self.setStyle(tickLength=-int(ptSize*0.7),
+                          tickTextOffset=txtoffs,
+                          tickTextWidth=int(30.0/9*ptSize),
+                          tickTextHeight=int(18.0/9*ptSize),
+                          )
+        #change tickValue size
+        if self.tickFont == None:
+            tickFont = QtGui.QPainter().font()
+            self.setTickFont(tickFont)
+        self.tickFont.setPointSizeF(ptSize*0.9)
+        self.sigFontSizeChanged.emit(ptSize)
 
     def setStyle(self, **kwds):
         """
@@ -164,6 +230,8 @@ class AxisItem(GraphicsWidget):
         self.update()
         
     def close(self):
+        self.sigLabelChanged.disconnect()
+        self.sigRangeChanged.disconnect()
         self.scene().removeItem(self.label)
         self.label = None
         self.scene().removeItem(self)
@@ -270,7 +338,8 @@ class AxisItem(GraphicsWidget):
         self._adjustSize()
         self.picture = None
         self.update()
-            
+        self.sigLabelChanged.emit(text, units, unitPrefix, args)
+
     def labelString(self):
         if self.labelUnits == '':
             if not self.autoSIPrefix or self.autoSIPrefixScale == 1.0:
@@ -318,6 +387,9 @@ class AxisItem(GraphicsWidget):
         
         If *height* is None, then the value will be determined automatically
         based on the size of the tick text."""
+        self.setMinimumWidth(-1)#reset, if limited before...
+        self.setMaximumWidth(-1) 
+    
         self.fixedHeight = h
         self._updateHeight()
         
@@ -349,6 +421,9 @@ class AxisItem(GraphicsWidget):
         
         If *width* is None, then the value will be determined automatically
         based on the size of the tick text."""
+        self.setMinimumHeight(-1)#reset, if limited before...
+        self.setMaximumHeight(-1) 
+        
         self.fixedWidth = w
         self._updateWidth()
         
@@ -456,25 +531,30 @@ class AxisItem(GraphicsWidget):
             self.updateAutoSIPrefix()
         self.picture = None
         self.update()
-        
+        self.sigRangeChanged.emit(mn,mx)
+
     def linkedView(self):
         """Return the ViewBox this axis is linked to"""
         if self._linkedView is None:
             return None
         else:
             return self._linkedView()
-        
+    
     def linkToView(self, view):
         """Link this axis to a ViewBox, causing its displayed range to match the visible range of the view."""
         oldView = self.linkedView()
         self._linkedView = weakref.ref(view)
-        if self.orientation in ['right', 'left']:
-            if oldView is not None:
+        
+        if oldView is not None:
+            #orientation of axis in oldview unknown, so:
+            try:
                 oldView.sigYRangeChanged.disconnect(self.linkedViewChanged)
+            except TypeError:
+                oldView.sigXRangeChanged.disconnect(self.linkedViewChanged)
+        
+        if self.orientation in ['right', 'left']:
             view.sigYRangeChanged.connect(self.linkedViewChanged)
         else:
-            if oldView is not None:
-                oldView.sigXRangeChanged.disconnect(self.linkedViewChanged)
             view.sigXRangeChanged.connect(self.linkedViewChanged)
         
         if oldView is not None:
