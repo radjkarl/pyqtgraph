@@ -9,7 +9,8 @@ from .ParameterItem import ParameterItem
 class ParameterTree(TreeWidget):
     """Widget used to display or control data from a hierarchy of Parameters"""
     
-    def __init__(self, parent=None, showHeader=True):
+    def __init__(self, parameter=None, parent=None, showHeader=True,
+                       showTop=False, animated=True):
         """
         ============== ========================================================
         **Arguments:**
@@ -30,7 +31,40 @@ class ParameterTree(TreeWidget):
         self.itemChanged.connect(self.itemChangedEvent)
         self.lastSel = None
         self.setRootIsDecorated(False)
-        
+
+        #inform parameter when expanded or collapsed by user: 
+        self.itemExpanded.connect(lambda item: 
+                item.param.opts.__setitem__ ('expanded',True))
+        self.itemCollapsed.connect(lambda item: 
+                item.param.opts.__setitem__ ('expanded',False))
+
+        self.setAnimated(animated)
+        if parameter:
+            self.setParameters(parameter, showTop)
+
+    #ADDED
+    def returnParameterOnKlick(self, activate, executeMethod=None):
+        '''
+        run [executeMethod] function when parameteritem is clicked
+        '''
+        if activate:
+            self.selectionChanged = self._doReturnParameterOnKlick
+            self._execute_ReturnParam = executeMethod
+        else:
+            self.selectionChanged = super(ParameterTree, self).selectionChanged
+
+    #ADDED
+    def _doReturnParameterOnKlick(self, *args):
+        sel = self.selectedItems()
+        for item in sel:
+            try:
+                param = item.param
+                if self._execute_ReturnParam:
+                    self._execute_ReturnParam(param)
+            except AttributeError:
+                pass
+        super(ParameterTree, self).selectionChanged(*args)
+
     def setParameters(self, param, showTop=True):
         """
         Set the top-level :class:`Parameter <pyqtgraph.parametertree.Parameter>`
