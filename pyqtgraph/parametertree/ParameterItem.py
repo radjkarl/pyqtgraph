@@ -65,7 +65,8 @@ class ParameterItem(QtGui.QTreeWidgetItem):
                     self.contextMenu.addMenu(i)
                 except TypeError:
                     self.contextMenu.addAction(i)
-            opts.pop('addToContextMenu')
+            #needs to save items, otherwise they are removed from contextMenu
+            self._contextMenuItems = opts.pop('addToContextMenu')
         # SLIDING
         if opts.get('sliding', False):
             self.controls = QtGui.QWidget()
@@ -199,9 +200,8 @@ class ParameterItem(QtGui.QTreeWidgetItem):
         pass
                 
     def contextMenuEvent(self, ev):
-        if not self.param.opts.get('removable', False) and not self.param.opts.get('renamable', False):
-            return
-            
+       # if not self.param.opts.get('removable', False) and not self.param.opts.get('renamable', False):
+       #     return
         self.contextMenu.popup(ev.globalPos())
         
     def columnChangedEvent(self, col):
