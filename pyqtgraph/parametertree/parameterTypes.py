@@ -81,6 +81,30 @@ class WidgetParameterItem(ParameterItem):
 
         self.updateDefaultBtn()
 
+        #hide defaults-button if param is readonly:
+        if opts.get('readonly', False):
+            self.defaultBtn.hide()        
+        
+        if opts.get('sliding', False):
+            #add slide up/down button to the parameterItem:
+            btnlayout = QtGui.QVBoxLayout() 
+            slideBtnUp = QtGui.QPushButton()
+            slideBtnDown = QtGui.QPushButton()
+            
+            for btn in (slideBtnUp, slideBtnDown):
+                btn.setFixedWidth(10)
+                btn.setFixedHeight(10)
+                btnlayout.addWidget(btn)
+            
+            slideBtnUp.setIcon(QtGui.QApplication.style().standardIcon(QtGui.QStyle.SP_ArrowUp))
+            slideBtnDown.setIcon(QtGui.QApplication.style().standardIcon(QtGui.QStyle.SP_ArrowDown))
+            slideBtnUp.clicked.connect(lambda: self.param.slide(-1))
+            slideBtnDown.clicked.connect(lambda: self.param.slide(1))
+            
+            self.layoutWidget.layout().addLayout(btnlayout)
+
+
+
     def makeWidget(self):
         """
         Return a single widget that should be placed in the second tree column.
