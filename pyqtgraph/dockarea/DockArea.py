@@ -6,6 +6,8 @@ from .Dock import Dock
 from .. import debug as debug
 import weakref
 
+from six import string_types
+
 ## TODO:
 # - containers should be drop areas, not docks. (but every slot within a container must have its own drop areas?)
 # - drop between tabs
@@ -124,7 +126,7 @@ class DockArea(Container, QtGui.QWidget, DockDrop):
                 container = self.topContainer
                 neighbor = None
         else:
-            if isinstance(relativeTo, basestring):
+            if isinstance(relativeTo, string_types):
                 relativeTo = self.docks[relativeTo]
             container = self.getContainer(relativeTo)
             neighbor = relativeTo
