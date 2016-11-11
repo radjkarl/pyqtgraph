@@ -19,7 +19,7 @@ from six import string_types
 class DockArea(Container, QtGui.QWidget, DockDrop):
     def __init__(self, 
                  ##<<ADDED
-                 max_docks_xy=(),
+                 max_docks_xy=(2,2),
                  ##>>
                  temporary=False, home=None):
         ##<<ADDED
