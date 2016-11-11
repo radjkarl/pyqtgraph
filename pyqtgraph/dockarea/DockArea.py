@@ -56,11 +56,10 @@ class DockArea(Container, QtGui.QWidget, DockDrop):
         '''
         place added Docks if 'position' and 'relativeTo' are unspecified
         see __init__-doc for more information
-        '''        
+        '''  
         if ( (position == None and relativeTo == None) #position in DockArea not specified
             and (self.max_docks_xy  and len(self.max_docks_xy) == 2) # max grid number is defined
             and self.topContainer): # at least one Dock is already there 
-            
             y = self.topContainer.count()
             if y == self.max_docks_xy[1]:
                 #max grid number of docks in y direction is reached
@@ -92,7 +91,7 @@ class DockArea(Container, QtGui.QWidget, DockDrop):
     def type(self):
         return "top"
         
-    def addDock(self, dock=None, position='bottom', relativeTo=None, **kwds):
+    def addDock(self, dock=None, position=None, relativeTo=None, **kwds):
         """Adds a dock to this area.
         
         ============== =================================================================
