@@ -3,7 +3,7 @@ from ..Qt import QtCore, QtGui
 from .DockDrop import *
 from ..widgets.VerticalLabel import VerticalLabel
 from ..python2_3 import asUnicode
-
+from .Container import TContainer
 import weakref
 
 class Dock(QtGui.QWidget, DockDrop):
