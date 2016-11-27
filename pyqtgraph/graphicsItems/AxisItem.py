@@ -95,7 +95,6 @@ class AxisItem(GraphicsWidget):
         self.grid = False
         #self.setCacheMode(self.DeviceCoordinateCache)
 
-    #ADDED
     def setOrientation(self, orientation):
         """
         orientation = 'left', 'right', 'top', 'bottom'
@@ -106,10 +105,15 @@ class AxisItem(GraphicsWidget):
             #rotate absolute allows to change orientation multiple times:
             if orientation in ['left', 'right']:
                 self.label.setRotation(-90)
+                if self.orientation:
+                    self._updateWidth()
+                    self.setMaximumHeight(16777215)
             else:
                 self.label.setRotation(0) 
+                if self.orientation:
+                    self._updateHeight()
+                    self.setMaximumWidth(16777215)
             self.orientation = orientation
-            self.update()
 
     #ADDED
     def clone(self, orientation=None, **kwargs):
