@@ -179,6 +179,7 @@ class WidgetParameterItem(ParameterItem):
             v = opts.get('value')
             if l:
                 w.setValue(v)
+            w.setSuffix(opts.get('suffix',None))
             self.hideWidget = False
         else:
             raise Exception("Unknown type '%s'" % asUnicode(t))
