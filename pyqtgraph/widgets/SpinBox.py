@@ -192,6 +192,8 @@ class SpinBox(QtGui.QAbstractSpinBox):
                 self.opts[k] = asUnicode(v)
             elif k == 'regex' and isinstance(v, basestring):
                 self.opts[k] = re.compile(v)
+            elif k == 'visible':
+                self.show() if v else self.hide()
             elif k in self.opts:
                 self.opts[k] = v
             else:

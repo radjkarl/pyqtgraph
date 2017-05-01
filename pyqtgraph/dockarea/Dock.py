@@ -3,6 +3,8 @@ from ..Qt import QtCore, QtGui
 from .DockDrop import *
 from ..widgets.VerticalLabel import VerticalLabel
 from ..python2_3 import asUnicode
+from .Container import TContainer
+import weakref
 
 class Dock(QtGui.QWidget, DockDrop):
     
@@ -13,10 +15,10 @@ class Dock(QtGui.QWidget, DockDrop):
     sigMaximized = QtCore.Signal()
     ##>>
 
-    def __init__(self, name, area=None, size=(10, 10), widget=None, hideTitle=False, 
-                 autoOrientation=False, closable=False,
+    def __init__(self, name, area=None, size=(10, 10), widget=None, 
+                 hideTitle=False, autoOrientation=False, closable=True,
                  ##<<ADDED
-                 closable=True, minimizable=True, maximizable=True):
+                 minimizable=True, maximizable=True):
                 ##>>
         QtGui.QWidget.__init__(self)
         DockDrop.__init__(self)
@@ -50,7 +52,8 @@ class Dock(QtGui.QWidget, DockDrop):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
         self.widgetArea.setLayout(self.layout)
-        self.widgetArea.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        self.widgetArea.setSizePolicy(QtGui.QSizePolicy.Expanding, 
+                                      QtGui.QSizePolicy.Expanding)
         self.widgets = []
         self.currentRow = 0
         #self.titlePos = 'top'
@@ -116,7 +119,7 @@ class Dock(QtGui.QWidget, DockDrop):
             self.hideTitleBar()
             # have to add to self in order not to be removed by garbage
             # collector:
-            self._fc_msg = FullscreenMsg(self)
+            self._fc_msg = _FullscreenMsg(self)
     
     #ADDED
     def keyPressEvent(self, e):
@@ -505,17 +508,17 @@ class DockLabel(VerticalLabel):
         s = QtGui.QApplication.style()
         if self.minimized:
             self.minButton.setIcon(s.standardIcon(
-                                            QtGui.QStyle.SP_TitleBarNormalButton))
+                                    QtGui.QStyle.SP_TitleBarNormalButton))
         else:   
             self.minButton.setIcon(s.standardIcon(
-                                            QtGui.QStyle.SP_TitleBarMinButton))
+                                    QtGui.QStyle.SP_TitleBarMinButton))
     
     #ADDED
     def maxButtonSetIcon(self):
         s = QtGui.QApplication.style()
         if self.maximized:
             self.maxButton.setIcon(s.standardIcon(
-                                            QtGui.QStyle.SP_TitleBarNormalButton))
+                                    QtGui.QStyle.SP_TitleBarNormalButton))
         else:   
             self.maxButton.setIcon(s.standardIcon(
                                             QtGui.QStyle.SP_TitleBarMaxButton))
@@ -557,7 +560,7 @@ class DockLabel(VerticalLabel):
             bg = '#44aa44'
             border = '#2f762f'
         ##>>
-        if self.dim:
+        elif self.dim:
             fg = '#aaa'
             bg = '#44a'
             border = '#339'
@@ -742,4 +745,26 @@ class DockLabelMenu(QtGui.QMenu):
 
     def _showContextMenu(self, point):
         self.exec_(self.dock.label.mapToGlobal(point))
+
+
+class _FullscreenMsg(QtGui.QLabel):
+    """
+    Simple message on top of this window
+    hides itself after few seconds
+    """
+
+    def __init__(self, parent):
+        QtGui.QLabel.__init__(
+            self, 'Press <ESC> to exit full screen', parent=parent)
+        # make frameles:
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint |
+                            QtCore.Qt.WindowStaysOnTopHint)
+        self.setStyleSheet(
+            "QLabel { background-color : black; color : white; }")
+
+        QtCore.QTimer.singleShot(3000, self.hide)
+
+        self.move(100, 30)
+        self.show()
+
 ##>>

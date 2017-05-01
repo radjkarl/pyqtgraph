@@ -108,5 +108,5 @@ rtr.cvs
 .tags*
 
 
-.settings/*
+.settings/
 pyqtgraph_karl/

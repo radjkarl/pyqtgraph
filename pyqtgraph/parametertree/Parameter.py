@@ -71,7 +71,8 @@ class Parameter(QtCore.QObject):
     sigDefaultChanged = QtCore.Signal(object, object)  ## self, default
     sigNameChanged = QtCore.Signal(object, object)  ## self, name
     sigOptionsChanged = QtCore.Signal(object, object)  ## self, {opt:val, ...}
-    
+    sigChildRemoved = QtCore.Signal(object, object, object)  ## self, child, index
+    sigDuplicated = QtCore.Signal()
     ## Emitted when anything changes about this parameter at all.
     ## The second argument is a string indicating what changed ('value', 'childAdded', etc..)
     ## The third argument can be any extra information about the change
@@ -144,6 +145,18 @@ class Parameter(QtCore.QObject):
                                      internally using the *name* specified above. Note that
                                      this option is not compatible with renamable=True.
                                      (default=None; added in version 0.9.9)
+        
+        duplicatable                 whether parameter can be duplicated (see ParameterItem)
+        key                          name or QKeySequence of the shortcut (see ParameterItem)
+        keyParent                    QWidget where the key is active
+        highlight                    True/False highlight parameter, similar to 'group'
+                                     (see ParameterItem)
+        icon'                        'path/to/icon' (see ParameterItem)
+        movable                      Allow drag/and drop.
+        sliding                      Allow change of position of parameters within the same 
+                                     hierarchy level
+        addToContextMenu             List of QMenu or QAction instances to add to the context 
+                                     menu
         =======================      =========================================================
         """
         
@@ -486,15 +499,16 @@ class Parameter(QtCore.QObject):
         else:
             return ParameterItem(self, depth=depth)
 
-
-    def addChild(self, child, autoIncrementName=None):
+    def addChild(self, child, autoIncrementName=None, duplicate=False):
         """
         Add another parameter to the end of this parameter's child list.
         
         See insertChild() for a description of the *autoIncrementName* 
         argument.
         """
-        return self.insertChild(len(self.childs), child, autoIncrementName=autoIncrementName)
+        return self.insertChild(len(self.childs), child, 
+                                autoIncrementName=autoIncrementName,
+                                duplicate=duplicate)
 
     def addChildren(self, children):
         """
@@ -516,7 +530,7 @@ class Parameter(QtCore.QObject):
             self.addChild(chOpts)
         
         
-    def insertChild(self, pos, child, autoIncrementName=None):
+    def insertChild(self, pos, child, autoIncrementName=None, duplicate=False):
         """
         Insert a new child at pos.
         If pos is a Parameter, then insert at the position of that Parameter.
@@ -542,13 +556,13 @@ class Parameter(QtCore.QObject):
             pos = self.childs.index(pos)
             
         with self.treeChangeBlocker():
-            if child.parent() is not None:
+            if child.parent() is not None and not duplicate:
                 child.remove()
                 
             self.names[name] = child
             self.childs.insert(pos, child)
-            
-            child.parentChanged(self)
+            if not duplicate:
+                child.parentChanged(self)
             self.sigChildAdded.emit(self, child, pos)
             child.sigTreeStateChanged.connect(self.treeStateChanged)
         return child
@@ -559,13 +573,42 @@ class Parameter(QtCore.QObject):
         if name not in self.names or self.names[name] is not child:
             raise Exception("Parameter %s is not my child; can't remove." % str(child))
         del self.names[name]
-        self.childs.pop(self.childs.index(child))
+        ind = self.childs.index(child)
+        self.childs.pop(ind)
         child.parentChanged(None)
-        self.sigChildRemoved.emit(self, child)
+        self.sigChildRemoved.emit(self, child, ind)
         try:
             child.sigTreeStateChanged.disconnect(self.treeStateChanged)
         except (TypeError, RuntimeError):  ## already disconnected
             pass
+
+    def slide(self, nPos):
+        '''change the position within the same level +-nPos'''
+        p = self.parent()
+        if p:
+            index = p.childs.index(self)
+            self.moveChild(self, index+nPos)
+
+
+    def moveChild(self, child, index_new):
+        '''move self or a child to a given index position'''
+        if child==self:
+            p = self.parent()
+        else:
+            p = self
+        if index_new < 0 or index_new > len(p.childs)-1:
+            return
+        p.opts['aboutToMove'] = True
+        p.insertChild(index_new,child)
+        p.opts['aboutToMove'] = False
+        
+    #ADDED
+    def duplicate(self, recursive=True):
+        p = Parameter.create(type=self.opts['type'], name='', value='')
+        p.restoreState(self.saveState(), recursive=recursive)
+
+        self.sigDuplicated.emit()
+        return p
 
     def clearChildren(self):
         """Remove all child parameters."""
@@ -713,6 +756,37 @@ class Parameter(QtCore.QObject):
                 param.setValue(...)
         """
         return SignalBlocker(self.blockTreeChangeSignal, self.unblockTreeChangeSignal)
+
+    #ADDED
+    def replaceWith(self, param):
+        """replace this parameter with another"""
+        i = self.parent().children().index(self)
+        # TODO: transfer the children:
+        p = self.parent()
+        self.parent().removeChild(self)
+        p.insertChild(i, param)
+        self = param
+    
+    #ADDED
+    def path(self):
+        c = p = self.parent()
+        l = self.name()
+        while p:
+            l = p.name() + ', ' + l
+            c = p
+            p = p.parent()
+        return c, l
+
+    def isVisible(self):
+        if self.opts['visible']:
+            p = self
+            while True:
+                p = p.parent()
+                if not p:
+                    return True
+                if not p.opts['visible']:
+                    break
+        return False
 
     def blockTreeChangeSignal(self):
         """
