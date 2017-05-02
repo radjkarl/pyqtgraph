@@ -770,12 +770,12 @@ class Parameter(QtCore.QObject):
     #ADDED
     def path(self):
         c = p = self.parent()
-        l = self.name()
+        l = [self.name()]
         while p:
-            l = p.name() + ', ' + l
+            l.insert(0, p.name())
             c = p
             p = p.parent()
-        return c, l
+        return c, tuple(l[1:])
 
     def isVisible(self):
         if self.opts['visible']:
