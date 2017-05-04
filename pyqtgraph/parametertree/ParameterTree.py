@@ -1,16 +1,17 @@
 from ..Qt import QtCore, QtGui
 from ..widgets.TreeWidget import TreeWidget
-import os, weakref, re
+import os
+import weakref
+import re
 from .ParameterItem import ParameterItem
 #import functions as fn
-        
-            
+
 
 class ParameterTree(TreeWidget):
     """Widget used to display or control data from a hierarchy of Parameters"""
-    
+
     def __init__(self, parameter=None, parent=None, showHeader=True,
-                       showTop=False, animated=True):
+                 showTop=False, animated=True):
         """
         ============== ========================================================
         **Arguments:**
@@ -32,29 +33,33 @@ class ParameterTree(TreeWidget):
         self.lastSel = None
         self.setRootIsDecorated(False)
 
-        #inform parameter when expanded or collapsed by user: 
-        self.itemExpanded.connect(lambda item: 
-                item.param.opts.__setitem__ ('expanded',True))
-        self.itemCollapsed.connect(lambda item: 
-                item.param.opts.__setitem__ ('expanded',False))
+        # inform parameter when expanded or collapsed by user:
+        self.itemExpanded.connect(lambda item:
+                                  item.param.opts.__setitem__('expanded', True))
+        self.itemCollapsed.connect(lambda item:
+                                   item.param.opts.__setitem__('expanded', False))
 
         self.setAnimated(animated)
         if parameter:
             self.setParameters(parameter, showTop)
 
-    #ADDED
-    def returnParameterOnKlick(self, activate, executeMethod=None):
+    # ADDED
+    def returnParameterOnClick(self, activate, executeMethod=None):
         '''
         run [executeMethod] function when parameteritem is clicked
         '''
         if activate:
-            self.selectionChanged = self._doReturnParameterOnKlick
+            self._back_selectionChanged = self.selectionChanged
+            self.selectionChanged = self._doReturnParameterOnClick
             self._execute_ReturnParam = executeMethod
         else:
-            self.selectionChanged = super(ParameterTree, self).selectionChanged
+            # super(ParameterTree, self).selectionChanged
+            self.selectionChanged = self._back_selectionChanged
+            del self._back_selectionChanged
+            del self._execute_ReturnParam
 
-    #ADDED
-    def _doReturnParameterOnKlick(self, *args):
+    # ADDED
+    def _doReturnParameterOnClick(self, *args):
         sel = self.selectedItems()
         for item in sel:
             try:
@@ -73,18 +78,18 @@ class ParameterTree(TreeWidget):
         If *showTop* is False, then the top-level parameter is hidden and only 
         its children will be visible. This is a convenience method equivalent 
         to::
-        
+
             tree.clear()
             tree.addParameters(param, showTop)
         """
         self.clear()
         self.addParameters(param, showTop=showTop)
-        
+
     def addParameters(self, param, root=None, depth=0, showTop=True):
         """
         Adds one top-level :class:`Parameter <pyqtgraph.parametertree.Parameter>`
         to the view. 
-        
+
         ============== ==========================================================
         **Arguments:** 
         param          The :class:`Parameter <pyqtgraph.parametertree.Parameter>` 
@@ -98,24 +103,24 @@ class ParameterTree(TreeWidget):
         item = param.makeTreeItem(depth=depth)
         if root is None:
             root = self.invisibleRootItem()
-            ## Hide top-level item
+            # Hide top-level item
             if not showTop:
                 item.setText(0, '')
-                item.setSizeHint(0, QtCore.QSize(1,1))
-                item.setSizeHint(1, QtCore.QSize(1,1))
+                item.setSizeHint(0, QtCore.QSize(1, 1))
+                item.setSizeHint(1, QtCore.QSize(1, 1))
                 depth -= 1
         root.addChild(item)
         item.treeWidgetChanged()
-            
+
         for ch in param:
-            self.addParameters(ch, root=item, depth=depth+1)
+            self.addParameters(ch, root=item, depth=depth + 1)
 
     def clear(self):
         """
         Remove all parameters from the tree.        
         """
-        self.invisibleRootItem().takeChildren()        
-            
+        self.invisibleRootItem().takeChildren()
+
     def focusNext(self, item, forward=True):
         """Give input focus to the next (or previous) item after *item*
         """
@@ -138,18 +143,18 @@ class ParameterTree(TreeWidget):
             if forward:
                 index = 0
             else:
-                index = root.childCount()-1
+                index = root.childCount() - 1
         else:
             if forward:
                 index = root.indexOfChild(startItem) + 1
             else:
                 index = root.indexOfChild(startItem) - 1
-            
+
         if forward:
             inds = list(range(index, root.childCount()))
         else:
             inds = list(range(index, -1, -1))
-            
+
         for i in inds:
             item = root.child(i)
             if hasattr(item, 'isFocusable') and item.isFocusable():
@@ -164,11 +169,11 @@ class ParameterTree(TreeWidget):
         item = self.currentItem()
         if hasattr(item, 'contextMenuEvent'):
             item.contextMenuEvent(ev)
-            
+
     def itemChangedEvent(self, item, col):
         if hasattr(item, 'columnChangedEvent'):
             item.columnChangedEvent(col)
-            
+
     def selectionChanged(self, *args):
         sel = self.selectedItems()
         if len(sel) != 1:
@@ -182,7 +187,7 @@ class ParameterTree(TreeWidget):
         if hasattr(sel[0], 'selected'):
             sel[0].selected(True)
         return TreeWidget.selectionChanged(self, *args)
-        
+
     def wheelEvent(self, ev):
         self.clearSelection()
         return TreeWidget.wheelEvent(self, ev)
