@@ -166,20 +166,8 @@ class PlotItem(GraphicsWidget):
         self.legend = None
         
         ## Create and place axis items
-        if axisItems is None:
-            axisItems = {}
         self.axes = {}
-        for k, pos in (('top', (1,1)), ('bottom', (3,1)), ('left', (2,0)), ('right', (2,2))):
-            if k in axisItems:
-                axis = axisItems[k]
-            else:
-                axis = AxisItem(orientation=k, parent=self)
-            axis.linkToView(self.vb)
-            self.axes[k] = {'item': axis, 'pos': pos}
-            self.layout.addItem(axis, *pos)
-            axis.setZValue(-1000)
-            axis.setFlag(axis.ItemNegativeZStacksBehindParent)
-        
+        self.setAxes(axisItems)
         self.titleLabel = LabelItem('', size='11pt', parent=self)
         self.layout.addItem(self.titleLabel, 0, 1)
         self.setTitle(None)  ## hide
@@ -266,12 +254,7 @@ class PlotItem(GraphicsWidget):
         
         self.ctrl.maxTracesCheck.toggled.connect(self.updateDecimation)
         self.ctrl.maxTracesSpin.valueChanged.connect(self.updateDecimation)
-        
-        self.hideAxis('right')
-        self.hideAxis('top')
-        self.showAxis('left')
-        self.showAxis('bottom')
-        
+   
         if labels is None:
             labels = {}
         for label in list(self.axes.keys()):
@@ -289,7 +272,43 @@ class PlotItem(GraphicsWidget):
         if len(kargs) > 0:
             self.plot(**kargs)
         
-        
+    def setAxes(self, axisItems):
+        """
+        Create and place axis items
+        For valid values for axisItems see __init__
+        """
+        for v in self.axes.values():
+            item = v['item']
+            self.layout.removeItem(item)
+            self.vb.removeItem(item)
+
+        self.axes = {}
+        if axisItems is None:
+            axisItems = {}
+        for k, pos in (('top', (1,1)), ('bottom', (3,1)), ('left', (2,0)), ('right', (2,2))):
+            axis = axisItems.get(k, None)
+            if axis:
+                axis.setOrientation(k)
+            else:
+                axis = AxisItem(orientation=k)
+            axis.linkToView(self.vb)
+            self.axes[k] = {'item': axis, 'pos': pos}            
+            self.layout.addItem(axis, *pos)
+            axis.setZValue(-1000)
+            axis.setFlag(axis.ItemNegativeZStacksBehindParent)
+        #show/hide axes:
+        all_dir = ['left', 'bottom', 'right', 'top']
+        if axisItems:
+            to_show = list(axisItems.keys())
+            to_hide = [a for a in all_dir if a not in to_show]
+        else:
+            to_show = all_dir[:2]
+            to_hide =  all_dir[2:]
+        for a  in to_hide:
+            self.hideAxis(a)
+        for a  in to_show:
+            self.showAxis(a)
+
     def implements(self, interface=None):
         return interface in ['ViewBoxWrapper']
 
@@ -641,13 +660,13 @@ class PlotItem(GraphicsWidget):
         
         return item
 
-    def addLegend(self, size=None, offset=(30, 30)):
+    def addLegend(self, size=None, offset=(30, 30), **kwargs):
         """
         Create a new LegendItem and anchor it over the internal ViewBox.
         Plots will be automatically displayed in the legend if they
         are created with the 'name' argument.
         """
-        self.legend = LegendItem(size, offset)
+        self.legend = LegendItem(size, offset, **kwargs)
         self.legend.setParentItem(self.vb)
         return self.legend
         
@@ -1145,8 +1164,8 @@ class PlotItem(GraphicsWidget):
         Show or hide one of the plot's axes.
         axis must be one of 'left', 'bottom', 'right', or 'top'
         """
-        s = self.getScale(axis)
-        p = self.axes[axis]['pos']
+        s = self.getAxis(axis)
+        #p = self.axes[axis]['pos']
         if show:
             s.show()
         else:
@@ -1227,4 +1246,3 @@ class PlotItem(GraphicsWidget):
             #self.autoBtn.hide()
         #else:
             #self.autoBtn.show()
-    

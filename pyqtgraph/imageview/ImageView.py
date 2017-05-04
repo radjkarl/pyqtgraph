@@ -118,7 +118,10 @@ class ImageView(QtGui.QWidget):
         self.ui = Ui_Form()
         self.ui.setupUi(self)
         self.scene = self.ui.graphicsView.scene()
-        
+        self.opts = {'autoLevels':True, 
+                     'autoRange':True, 
+                     'autoHistogramRange':True, 
+                     'discreteTimeLine':False}
         self.ignoreTimeLine = False
         
         if view is None:
@@ -153,10 +156,20 @@ class ImageView(QtGui.QWidget):
         self.normRoi.hide()
         self.roiCurve = self.ui.roiPlot.plot()
         self.timeLine = InfiniteLine(0, movable=True)
-        self.timeLine.setPen((255, 255, 0, 200))
+        if getConfigOption('background')=='w':
+            self.timeLine.setPen((20, 80,80, 200))
+        else:
+            self.timeLine.setPen((255, 255, 0, 200))
         self.timeLine.setZValue(1)
         self.ui.roiPlot.addItem(self.timeLine)
         self.ui.splitter.setSizes([self.height()-35, 35])
+        
+        # make splitter an unchangeable small grey line:
+        s = self.ui.splitter
+        s.handle(1).setEnabled(False)
+        s.setStyleSheet("QSplitter::handle{background-color: grey}")
+        s.setHandleWidth(2)
+
         self.ui.roiPlot.hideAxis('left')
         
         self.keysPressed = {}
@@ -200,7 +213,7 @@ class ImageView(QtGui.QWidget):
         
         self.roiClicked() ## initialize roi plot to correct shape / visibility
 
-    def setImage(self, img, autoRange=True, autoLevels=True, levels=None, axes=None, xvals=None, pos=None, scale=None, transform=None, autoHistogramRange=True):
+    def setImage(self, img, autoRange=None, autoLevels=None, levels=None, axes=None, xvals=None, pos=None, scale=None, transform=None, autoHistogramRange=True):
         """
         Set the image to be displayed in the widget.
         
@@ -239,7 +252,12 @@ class ImageView(QtGui.QWidget):
         
         """
         profiler = debug.Profiler()
-        
+
+        if autoLevels == None:
+            autoLevels = self.opts['autoLevels']
+        if autoRange == None:
+            autoRange = self.opts['autoRange']
+
         if hasattr(img, 'implements') and img.implements('MetaArray'):
             img = img.asarray()
         
@@ -360,8 +378,64 @@ class ImageView(QtGui.QWidget):
             
         self.lastPlayTime = ptime.time()
         if not self.playTimer.isActive():
-            self.playTimer.start(16)
+            self.playTimer.start(abs(int(1000/rate)))
+
+    def setHistogramLabel(self, text=None, **kwargs):
+        """
+        Set the label text of the histogram axis similar to 
+        :func:`AxisItem.setLabel() <pyqtgraph.AxisItem.setLabel>`
+        """
+        a = self.ui.histogram.axis
+        a.setLabel(text, **kwargs)
+        if text == '':
+            a.showLabel(False)
+        self.ui.histogram.setMinimumWidth(135)
+
+    @property
+    def nframes(self):
+        return self.getProcessedImage().shape[0]
+
+    def setHistogramPrintView(self, printView=True, showHistogram=False):
+        '''
+        transforms the histogram into a more common shape to export the image
+        for some season this method doesn't work when called in LUTHistogram directly
+        * show/hide histogram plot
+        * resize area <- TODO: works with static sizes, changes this!
+        if hide:
+        * set histogramAxis to current range
+        * disable mouseinteraction for histogramAxis
+        '''
+        h = self.ui.histogram
+        if printView:
+            #fit range to axis
+                #because h.gradient doens't go to the border
+                #we need to extent the current region to be in level
+                #with the gradient
+            r = h.region.getRegion()
+            ysize = h.vb.boundingRect().height()
+            yRangePerPx = (r[1]-r[0]) / ysize
+            distGradient2VbBorder = 9
+            y_offset = distGradient2VbBorder * yRangePerPx
             
+            h.vb.setYRange(r[0]-y_offset,r[1]+y_offset, padding=0)
+            if showHistogram:
+                h.region.hide()   
+            else:       
+                h.vb.hide()
+                h.vb.setMinimumWidth(0)
+                h.setFixedWidth(95)
+            h.vb.state['mouseEnabled'][1] = False
+        else:   
+            h.vb.setMinimumWidth(45)
+            h.region.show()
+            h.vb.show()
+            h.setMinimumWidth(135)
+            h.vb.state['mouseEnabled'][1] = True     
+        h.gradient.showTicks(not printView)
+        h.update()
+        h.gradient.update() 
+
+ 
     def autoLevels(self):
         """Set the min/max intensity levels automatically to match the image data."""
         self.setLevels(self.levelMin, self.levelMax)
@@ -397,21 +471,19 @@ class ImageView(QtGui.QWidget):
         self.setParent(None)
         
     def keyPressEvent(self, ev):
-        #print ev.key()
         if ev.key() == QtCore.Qt.Key_Space:
             if self.playRate == 0:
-                fps = (self.getProcessedImage().shape[0]-1) / (self.tVals[-1] - self.tVals[0])
+                fps = (self.nframes-1) / (self.tVals[-1] - self.tVals[0])
                 self.play(fps)
-                #print fps
             else:
-                self.play(0)
+                self.play(self.playRate)
             ev.accept()
         elif ev.key() == QtCore.Qt.Key_Home:
             self.setCurrentIndex(0)
             self.play(0)
             ev.accept()
         elif ev.key() == QtCore.Qt.Key_End:
-            self.setCurrentIndex(self.getProcessedImage().shape[0]-1)
+            self.setCurrentIndex(self.nframes-1)
             self.play(0)
             ev.accept()
         elif ev.key() in self.noRepeatKeys:
@@ -475,12 +547,12 @@ class ImageView(QtGui.QWidget):
         
     def setCurrentIndex(self, ind):
         """Set the currently displayed frame index."""
-        self.currentIndex = np.clip(ind, 0, self.getProcessedImage().shape[self.axes['t']]-1)
+        self.currentIndex = np.clip(ind, 0, self.nframes-1)
         self.updateImage()
         self.ignoreTimeLine = True
         self.timeLine.setValue(self.tVals[self.currentIndex])
         self.ignoreTimeLine = False
-
+        
     def jumpFrames(self, n):
         """Move video frame ahead n frames (may be negative)"""
         if self.axes['t'] is not None:
@@ -527,6 +599,7 @@ class ImageView(QtGui.QWidget):
             #self.ui.roiPlot.show()
             self.ui.roiPlot.setMouseEnabled(True, True)
             self.ui.splitter.setSizes([self.height()*0.6, self.height()*0.4])
+            self.ui.splitter.handle(1).setEnabled(True)
             self.roiCurve.show()
             self.roiChanged()
             self.ui.roiPlot.showAxis('left')
@@ -546,6 +619,7 @@ class ImageView(QtGui.QWidget):
             self.ui.roiPlot.show()
             if not self.ui.roiBtn.isChecked():
                 self.ui.splitter.setSizes([self.height()-35, 35])
+                self.ui.splitter.handle(1).setEnabled(False)
         else:
             self.timeLine.hide()
             #self.ui.roiPlot.hide()
@@ -648,15 +722,20 @@ class ImageView(QtGui.QWidget):
             self.updateImage()
         #self.timeLine.setPos(time)
         #self.emit(QtCore.SIGNAL('timeChanged'), ind, time)
+        if self.opts['discreteTimeLine']:
+            self.timeLine.sigPositionChanged.disconnect(self.timeLineChanged)
+            self.timeLine.setPos(self.currentIndex)
+            self.timeLine.sigPositionChanged.connect(self.timeLineChanged)
         self.sigTimeChanged.emit(ind, time)
 
     def updateImage(self, autoHistogramRange=True):
         ## Redraw image on screen
         if self.image is None:
             return
-            
+    
         image = self.getProcessedImage()
-        
+        if autoHistogramRange == None:
+            autoHistogramRange = self.opts['autoHistogramRange']
         if autoHistogramRange:
             self.ui.histogram.setHistogramRange(self.levelMin, self.levelMax)
         
@@ -689,8 +768,8 @@ class ImageView(QtGui.QWidget):
         else:
             if len(xv) < 2:
                 return (0,0)
-            totTime = xv[-1] + (xv[-1]-xv[-2])
-            inds = np.argwhere(xv < t)
+            #totTime = xv[-1] + (xv[-1]-xv[-2])
+            inds = np.argwhere(xv <= t)
             if len(inds) < 1:
                 return (0,t)
             ind = inds[-1,0]

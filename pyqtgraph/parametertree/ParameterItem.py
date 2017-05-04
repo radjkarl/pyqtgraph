@@ -63,10 +63,10 @@ class ParameterItem(QtGui.QTreeWidgetItem):
             for i in menuitems:
                 try:
                     self.contextMenu.addMenu(i)
-                    print (i.title())
                 except TypeError:
                     self.contextMenu.addAction(i)
-            opts.pop('addToContextMenu')
+            #needs to save items, otherwise they are removed from contextMenu
+            self._contextMenuItems = opts.pop('addToContextMenu')
         # SLIDING
         if opts.get('sliding', False):
             self.controls = QtGui.QWidget()
@@ -97,8 +97,7 @@ class ParameterItem(QtGui.QTreeWidgetItem):
         if opts.get('duplicatable', False):
             self.contextMenu.addAction(
                 "Duplicate").triggered.connect(param.duplicate)
-        if opts.get('type') == 'group' or param.opts.get(
-                'highlight', False):
+        if opts.get('type') == 'group':
             self.updateDepth(depth)
         # ICON
         iconpath = opts.get('icon', False)
@@ -201,9 +200,8 @@ class ParameterItem(QtGui.QTreeWidgetItem):
         pass
                 
     def contextMenuEvent(self, ev):
-        if not self.param.opts.get('removable', False) and not self.param.opts.get('renamable', False):
-            return
-            
+       # if not self.param.opts.get('removable', False) and not self.param.opts.get('renamable', False):
+       #     return
         self.contextMenu.popup(ev.globalPos())
         
     def columnChangedEvent(self, col):
