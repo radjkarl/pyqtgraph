@@ -188,8 +188,12 @@ class SpinBox(QtGui.QAbstractSpinBox):
                 self.opts[k] = D(asUnicode(v))
             elif k == 'value':
                 pass   ## don't set value until bounds have been set
+            elif k == 'format':
+                self.opts[k] = asUnicode(v)
+            elif k == 'regex' and isinstance(v, basestring):
+                self.opts[k] = re.compile(v)
             elif k == 'visible':
-                self.show() if k else self.hide()
+                self.show() if v else self.hide()
             elif k in self.opts:
                 self.opts[k] = v
             else:

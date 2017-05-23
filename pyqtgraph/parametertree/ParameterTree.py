@@ -10,8 +10,7 @@ from .ParameterItem import ParameterItem
 class ParameterTree(TreeWidget):
     """Widget used to display or control data from a hierarchy of Parameters"""
 
-    def __init__(self, parameter=None, parent=None, showHeader=True,
-                 showTop=False, animated=True):
+    def __init__(self, parent=None, showHeader=True,animated=True):
         """
         ============== ========================================================
         **Arguments:**
@@ -40,8 +39,6 @@ class ParameterTree(TreeWidget):
                                    item.param.opts.__setitem__('expanded', False))
 
         self.setAnimated(animated)
-        if parameter:
-            self.setParameters(parameter, showTop)
 
     # ADDED
     def returnParameterOnClick(self, activate, executeMethod=None):
