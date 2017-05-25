@@ -97,8 +97,8 @@ class ParameterItem(QtGui.QTreeWidgetItem):
         if opts.get('duplicatable', False):
             self.contextMenu.addAction(
                 "Duplicate").triggered.connect(param.duplicate)
-        if opts.get('type') == 'group':
-            self.updateDepth(depth)
+        #if opts.get('type') == 'group':
+         #   self.updateDepth(depth)
         # ICON
         iconpath = opts.get('icon', False)
         if iconpath:
