@@ -101,6 +101,7 @@ class HistogramLUTItem(GraphicsWidget):
         #return QtCore.QSizeF(115, 200)
         
     def paint(self, p, *args):
+<<<<<<< HEAD
         if self.region.isVisible():
             pen = self.region.lines[0].pen
             rgn = self.getLevels()
@@ -113,6 +114,20 @@ class HistogramLUTItem(GraphicsWidget):
                 p.drawLine(p2, gradRect.topLeft())
                 p.drawLine(gradRect.topLeft(), gradRect.topRight())
                 p.drawLine(gradRect.bottomLeft(), gradRect.bottomRight())
+=======
+        pen = self.region.lines[0].pen
+        rgn = self.getLevels()
+        p1 = self.vb.mapFromViewToItem(self, Point(self.vb.viewRect().center().x(), rgn[0]))
+        p2 = self.vb.mapFromViewToItem(self, Point(self.vb.viewRect().center().x(), rgn[1]))
+        gradRect = self.gradient.mapRectToParent(self.gradient.gradRect.rect())
+        p.setRenderHint(QtGui.QPainter.Antialiasing)
+        for pen in [fn.mkPen('k', width=3), pen]:
+            p.setPen(pen)
+            p.drawLine(p1, gradRect.bottomLeft())
+            p.drawLine(p2, gradRect.topLeft())
+            p.drawLine(gradRect.topLeft(), gradRect.topRight())
+            p.drawLine(gradRect.bottomLeft(), gradRect.bottomRight())
+>>>>>>> refs/remotes/origin/antiAliasLUT
         #p.drawRect(self.boundingRect())
         
     def linkHistogram(self, slaveHistogram, connect=True):
