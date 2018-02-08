@@ -240,7 +240,8 @@ class ImageItem(GraphicsObject):
         else:
             gotNewData = True
             shapeChanged = (self.image is None or image.shape != self.image.shape)
-            image = image.view(np.ndarray)
+            if not np.ma.is_masked(image):
+                image = image.view(np.ndarray)
             if self.image is None or image.dtype != self.image.dtype:
                 self._effectiveLut = None
             self.image = image
